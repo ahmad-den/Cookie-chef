@@ -24,31 +24,36 @@ setInterval(setChristmasIcon, 60 * 60 * 1000); //Every hour
 chrome.storage.local.set({"option_panel": "null"});
 
 var currentVersion = chrome.runtime.getManifest().version;
-var oldVersion = data.lastVersionRun;
 
-data.lastVersionRun = currentVersion;
+// Get the last version from storage
+chrome.storage.local.get(['lastVersionRun'], function(result) {
+    var oldVersion = result.lastVersionRun;
+    
+    // Set current version
+    chrome.storage.local.set({'lastVersionRun': currentVersion});
 
-if (oldVersion !== currentVersion) {
-    if (oldVersion === undefined) { //Is firstrun
-        chrome.tabs.create({ url: 'https://cookiechef.dev/start/' });
-    } else {
-        chrome.notifications.onClicked.addListener(function (notificationId) {
-            chrome.tabs.create({
-                url: 'https://cookiechef.dev/changelog/'
+    if (oldVersion !== currentVersion) {
+        if (oldVersion === undefined) { //Is firstrun
+            chrome.tabs.create({ url: 'https://cookiechef.dev/start/' });
+        } else {
+            chrome.notifications.onClicked.addListener(function (notificationId) {
+                chrome.tabs.create({
+                    url: 'https://cookiechef.dev/changelog/'
+                });
+                chrome.notifications.clear(notificationId, function (wasCleared) { });
             });
-            chrome.notifications.clear(notificationId, function (wasCleared) { });
-        });
-        var opt = {
-            type: "basic",
-            title: "Cookie Chef",
-            message: _getMessage("updated"),
-            iconUrl: "/img/icon_128x128.png",
-            isClickable: true
-        };
-        chrome.notifications.create("", opt, function (notificationId) {
-        });
+            var opt = {
+                type: "basic",
+                title: "Cookie Chef",
+                message: _getMessage("updated"),
+                iconUrl: "/img/icon_128x128.png",
+                isClickable: true
+            };
+            chrome.notifications.create("", opt, function (notificationId) {
+            });
+        }
     }
-}
+});
 
 setContextMenu(preferences.showContextMenu);
 
@@ -77,7 +82,11 @@ chrome.cookies.onChanged.addListener(function (changeInfo) {
                         return;
                     var newCookie = cookieForCreationFromFullCookie(currentRORule);
                     chrome.cookies.set(newCookie);
-                    ++data.nCookiesProtected;
+                    // Update storage instead of direct data access
+                    chrome.storage.local.get(['data_nCookiesProtected'], function(result) {
+                        var count = (result.data_nCookiesProtected || 0) + 1;
+                        chrome.storage.local.set({'data_nCookiesProtected': count});
+                    });
                 });
             }
             return;
@@ -98,7 +107,11 @@ chrome.cookies.onChanged.addListener(function (changeInfo) {
                         toRemove.url = "http" + ((cookie.secure) ? "s" : "") + "://" + cookie.domain + cookie.path;
                         toRemove.name = name;
                         chrome.cookies.remove(toRemove);
-                        ++data.nCookiesFlagged;
+                        // Update storage instead of direct data access
+                        chrome.storage.local.get(['data_nCookiesFlagged'], function(result) {
+                            var count = (result.data_nCookiesFlagged || 0) + 1;
+                            chrome.storage.local.set({'data_nCookiesFlagged': count});
+                        });
                     });
             }
         }
@@ -111,7 +124,11 @@ chrome.cookies.onChanged.addListener(function (changeInfo) {
             if (!cookie.session)
                 newCookie.expirationDate = maxAllowedExpiration;
             chrome.cookies.set(newCookie);
-            ++data.nCookiesShortened;
+            // Update storage instead of direct data access
+            chrome.storage.local.get(['data_nCookiesShortened'], function(result) {
+                var count = (result.data_nCookiesShortened || 0) + 1;
+                chrome.storage.local.set({'data_nCookiesShortened': count});
+            });
         }
     }
 });

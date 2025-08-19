@@ -20,8 +20,7 @@
     },
     "devtools_page": "devtools/devtools-page.html",
     "background": {
-        "service_worker": "js/background.js",
-        "type": "module"
+        "service_worker": "js/background.js"
     },
     "options_page": "options_main_page.html",
     "permissions": [
