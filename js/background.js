@@ -32,11 +32,60 @@ async function initializeData() {
 
     setContextMenu(preferences.showContextMenu);
     setChristmasIcon();
+    
+    // Start monitoring existing cookies after initialization
+    setTimeout(() => {
+        monitorExistingCookies();
+    }, 1000);
 }
 
 // Save data to storage
 async function saveData() {
     await chrome.storage.local.set({ preferences, data });
+}
+
+// Monitor existing cookies and remove blocked ones
+async function monitorExistingCookies() {
+    if (!data.filters || data.filters.length === 0) {
+        return;
+    }
+
+    try {
+        const allCookies = await chrome.cookies.getAll({});
+        
+        for (const cookie of allCookies) {
+            for (const filter of data.filters) {
+                if (filterMatchesCookie(filter, cookie.name, cookie.domain, cookie.value)) {
+                    const cookieUrl = buildCookieUrl(cookie);
+                    await chrome.cookies.remove({
+                        url: cookieUrl,
+                        name: cookie.name,
+                        storeId: cookie.storeId
+                    });
+                    
+                    data.nCookiesFlagged++;
+                    await saveData();
+                    console.log(`Blocked cookie: ${cookie.name} from ${cookie.domain}`);
+                    break;
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Error monitoring existing cookies:', error);
+    }
+}
+
+// Helper function to build cookie URL
+function buildCookieUrl(cookie) {
+    const protocol = cookie.secure ? 'https://' : 'http://';
+    let domain = cookie.domain;
+    
+    // Remove leading dot from domain if present
+    if (domain.startsWith('.')) {
+        domain = domain.substring(1);
+    }
+    
+    return protocol + domain + cookie.path;
 }
 
 // Set Christmas icon based on date and preferences
@@ -96,27 +145,42 @@ function showPopup(info, tab) {
     });
 }
 
-// Helper function to check if filter matches cookie
+// Enhanced filter matching function
 function filterMatchesCookie(rule, name, domain, value) {
-    if (rule.domain !== undefined) {
-        const ruleDomainReg = new RegExp(rule.domain);
-        if (domain.match(ruleDomainReg) === null) {
-            return false;
+    try {
+        // Check domain filter
+        if (rule.domain !== undefined && rule.domain !== null && rule.domain !== '') {
+            const ruleDomainReg = new RegExp(rule.domain, 'i');
+            // Check both the domain and domain with leading dot
+            const domainToCheck = domain.startsWith('.') ? domain.substring(1) : domain;
+            const domainWithDot = domain.startsWith('.') ? domain : '.' + domain;
+            
+            if (!ruleDomainReg.test(domain) && !ruleDomainReg.test(domainToCheck) && !ruleDomainReg.test(domainWithDot)) {
+                return false;
+            }
         }
-    }
-    if (rule.name !== undefined) {
-        const ruleNameReg = new RegExp(rule.name);
-        if (name.match(ruleNameReg) === null) {
-            return false;
+        
+        // Check name filter
+        if (rule.name !== undefined && rule.name !== null && rule.name !== '') {
+            const ruleNameReg = new RegExp(rule.name, 'i');
+            if (!ruleNameReg.test(name)) {
+                return false;
+            }
         }
-    }
-    if (rule.value !== undefined) {
-        const ruleValueReg = new RegExp(rule.value);
-        if (value.match(ruleValueReg) === null) {
-            return false;
+        
+        // Check value filter
+        if (rule.value !== undefined && rule.value !== null && rule.value !== '') {
+            const ruleValueReg = new RegExp(rule.value, 'i');
+            if (!ruleValueReg.test(value)) {
+                return false;
+            }
         }
+        
+        return true;
+    } catch (error) {
+        console.error('Error in filterMatchesCookie:', error);
+        return false;
     }
-    return true;
 }
 
 // Helper function to compare cookies
@@ -187,6 +251,9 @@ chrome.runtime.onInstalled.addListener(async function(details) {
             await saveData();
         }
     }
+    
+    // Re-initialize data after install/update
+    await initializeData();
 });
 
 // Handle notification clicks
@@ -199,7 +266,25 @@ chrome.notifications.onClicked.addListener(function (notificationId) {
     }
 });
 
-// Monitor cookie changes for blocking and protection
+// Listen for storage changes to update local data
+chrome.storage.onChanged.addListener(async function(changes, namespace) {
+    if (namespace === 'local') {
+        if (changes.data) {
+            data = { ...data, ...changes.data.newValue };
+            // Re-monitor cookies when filters change
+            if (changes.data.newValue?.filters) {
+                setTimeout(() => {
+                    monitorExistingCookies();
+                }, 100);
+            }
+        }
+        if (changes.preferences) {
+            preferences = { ...preferences, ...changes.preferences.newValue };
+        }
+    }
+});
+
+// Enhanced cookie monitoring with better blocking
 chrome.cookies.onChanged.addListener(async function (changeInfo) {
     const removed = changeInfo.removed;
     const cookie = changeInfo.cookie;
@@ -211,50 +296,108 @@ chrome.cookies.onChanged.addListener(async function (changeInfo) {
     const domain = cookie.domain;
     const value = cookie.value;
 
+    // Reload data from storage to ensure we have latest filters
+    const result = await chrome.storage.local.get(['data']);
+    const currentData = result.data || { readOnly: [], filters: [] };
+
     // Check protected cookies (read-only)
-    for (let i = 0; i < data.readOnly.length; i++) {
-        const currentRORule = data.readOnly[i];
+    for (let i = 0; i < currentData.readOnly.length; i++) {
+        const currentRORule = currentData.readOnly[i];
         if (compareCookies(cookie, currentRORule)) {
             if (removed) {
-                const cookieUrl = "http" + ((currentRORule.secure) ? "s" : "") + "://" + currentRORule.domain + currentRORule.path;
+                const cookieUrl = buildCookieUrl(currentRORule);
                 const existingCookie = await chrome.cookies.get({
                     'url': cookieUrl,
                     'name': currentRORule.name,
                     'storeId': currentRORule.storeId
                 });
                 
-                if (!compareCookies(existingCookie, currentRORule)) {
+                if (!existingCookie || !compareCookies(existingCookie, currentRORule)) {
                     const newCookie = cookieForCreationFromFullCookie(currentRORule);
-                    chrome.cookies.set(newCookie);
-                    data.nCookiesProtected++;
-                    await saveData();
+                    await chrome.cookies.set(newCookie);
+                    currentData.nCookiesProtected = (currentData.nCookiesProtected || 0) + 1;
+                    await chrome.storage.local.set({ data: currentData });
                 }
             }
             return;
         }
     }
 
-    // Check blocked cookies (filters)
+    // Check blocked cookies (filters) - both on creation and modification
     if (!removed) {
-        for (let i = 0; i < data.filters.length; i++) {
-            const currentFilter = data.filters[i];
+        for (let i = 0; i < currentData.filters.length; i++) {
+            const currentFilter = currentData.filters[i];
             if (filterMatchesCookie(currentFilter, name, domain, value)) {
-                const cookieUrl = "http" + ((cookie.secure) ? "s" : "") + "://" + cookie.domain + cookie.path;
-                chrome.cookies.remove({
+                const cookieUrl = buildCookieUrl(cookie);
+                
+                // Remove the blocked cookie
+                await chrome.cookies.remove({
                     url: cookieUrl,
                     name: name,
                     storeId: cookie.storeId
                 });
-                data.nCookiesFlagged++;
-                await saveData();
+                
+                currentData.nCookiesFlagged = (currentData.nCookiesFlagged || 0) + 1;
+                await chrome.storage.local.set({ data: currentData });
+                
+                console.log(`Blocked cookie: ${name} from ${domain} (cause: ${cause})`);
                 break;
             }
         }
     }
 });
 
+// Monitor tab updates to check for blocked cookies on page load
+chrome.tabs.onUpdated.addListener(async function(tabId, changeInfo, tab) {
+    if (changeInfo.status === 'loading' && tab.url) {
+        // Small delay to let page start loading
+        setTimeout(async () => {
+            await monitorTabCookies(tab.url, tabId);
+        }, 500);
+    }
+});
+
+// Monitor cookies for a specific tab/URL
+async function monitorTabCookies(url, tabId) {
+    if (!data.filters || data.filters.length === 0) {
+        return;
+    }
+
+    try {
+        // Get cookies for this URL
+        const cookies = await chrome.cookies.getAll({ url: url });
+        
+        for (const cookie of cookies) {
+            for (const filter of data.filters) {
+                if (filterMatchesCookie(filter, cookie.name, cookie.domain, cookie.value)) {
+                    const cookieUrl = buildCookieUrl(cookie);
+                    await chrome.cookies.remove({
+                        url: cookieUrl,
+                        name: cookie.name,
+                        storeId: cookie.storeId
+                    });
+                    
+                    data.nCookiesFlagged++;
+                    await saveData();
+                    console.log(`Blocked cookie on page load: ${cookie.name} from ${cookie.domain}`);
+                    break;
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Error monitoring tab cookies:', error);
+    }
+}
+
 // Set Christmas icon periodically
 setInterval(setChristmasIcon, 60 * 60 * 1000); // Every hour
 
 // Initialize on startup
 chrome.runtime.onStartup.addListener(initializeData);
+
+// Periodic cleanup of blocked cookies (every 30 seconds)
+setInterval(async () => {
+    if (data.filters && data.filters.length > 0) {
+        await monitorExistingCookies();
+    }
+}, 30000);

@@ -46,6 +46,15 @@ function updateUI() {
             if (filter.name) text += `with name: ${filter.name} `;
             if (filter.value) text += `with value: ${filter.value} `;
             
+            // Show a more user-friendly description
+            if (!filter.domain && !filter.name && !filter.value) {
+                text = "Block all cookies";
+            } else if (filter.domain && filter.name && !filter.value) {
+                text = `Block "${filter.name}" from ${filter.domain}`;
+            } else if (filter.domain && !filter.name && !filter.value) {
+                text = `Block all cookies from ${filter.domain}`;
+            }
+            
             item.append($("<span>").text(text));
             item.append($("<button class='remove-blocked' data-index='" + index + "'>Remove</button>"));
             blockedList.append(item);

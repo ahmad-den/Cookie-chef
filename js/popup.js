@@ -348,12 +348,17 @@ function setCookieEvents() {
         var name = $(".name", cookie).val();
         var path = $(".path", cookie).val();
         var index = $(".index", cookie).val();
+        var value = $(".value", cookie).val();
 
         var newRule = {
             domain: domain,
-            name: name,
-            path: path
+            name: name
         };
+        
+        // Add value to filter if it's not empty
+        if (value && value.trim() !== '') {
+            newRule.value = value.trim();
+        }
 
         // Add block rule
         chrome.storage.local.get(['data'], function(result) {
@@ -364,7 +369,8 @@ function setCookieEvents() {
             for (let x = 0; x < data.filters.length; x++) {
                 const currFilter = data.filters[x];
                 if (currFilter.domain === newRule.domain && 
-                    currFilter.name === newRule.name) {
+                    currFilter.name === newRule.name &&
+                    currFilter.value === newRule.value) {
                     exists = true;
                     break;
                 }
@@ -379,10 +385,21 @@ function setCookieEvents() {
                 var url = buildUrl(domain, path, getUrlOfCookies());
                 deleteCookie(url, name, cookieList[index].storeId);
                 
+                // Also try to delete from all possible URLs for this domain
+                var secureUrl = buildUrl(domain, path, "https://" + domain);
+                var insecureUrl = buildUrl(domain, path, "http://" + domain);
+                deleteCookie(secureUrl, name, cookieList[index].storeId);
+                deleteCookie(insecureUrl, name, cookieList[index].storeId);
+                
                 // Update UI to show blocked status
                 var titleName = $("b", cookie.prev()).first();
                 titleName.css("color", "red");
                 cookieList[index].isBlocked = true;
+                
+                // Show confirmation message
+                setTimeout(function() {
+                    alert("Cookie blocked successfully. It will be automatically deleted when created.");
+                }, 100);
             }
         });
     });

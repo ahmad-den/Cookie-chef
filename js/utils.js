@@ -106,19 +106,40 @@ function _getMessage(string, args) {
 }
 
 function filterMatchesCookie(rule, name, domain, value) {
-    var ruleDomainReg = new RegExp(rule.domain);
-    var ruleNameReg = new RegExp(rule.name);
-    var ruleValueReg = new RegExp(rule.value);
-    if (rule.domain !== undefined && domain.match(ruleDomainReg) === null) {
+    try {
+        // Check domain filter
+        if (rule.domain !== undefined && rule.domain !== null && rule.domain !== '') {
+            const ruleDomainReg = new RegExp(rule.domain, 'i');
+            // Check both the domain and domain with leading dot
+            const domainToCheck = domain.startsWith('.') ? domain.substring(1) : domain;
+            const domainWithDot = domain.startsWith('.') ? domain : '.' + domain;
+            
+            if (!ruleDomainReg.test(domain) && !ruleDomainReg.test(domainToCheck) && !ruleDomainReg.test(domainWithDot)) {
+                return false;
+            }
+        }
+        
+        // Check name filter
+        if (rule.name !== undefined && rule.name !== null && rule.name !== '') {
+            const ruleNameReg = new RegExp(rule.name, 'i');
+            if (!ruleNameReg.test(name)) {
+                return false;
+            }
+        }
+        
+        // Check value filter
+        if (rule.value !== undefined && rule.value !== null && rule.value !== '') {
+            const ruleValueReg = new RegExp(rule.value, 'i');
+            if (!ruleValueReg.test(value)) {
+                return false;
+            }
+        }
+        
+        return true;
+    } catch (error) {
+        console.error('Error in filterMatchesCookie:', error);
         return false;
     }
-    if (rule.name !== undefined && name.match(ruleNameReg) === null) {
-        return false;
-    }
-    if (rule.value !== undefined && value.match(ruleValueReg) === null) {
-        return false;
-    }
-    return true;
 }
 
 function getUrlVars() {
