@@ -217,10 +217,13 @@ function createAccordionList(cks, callback, callbackArguments) {
     let createAccordionCallback = callback;
     let createAccordionCallbackArguments = callbackArguments;
 
-    try {
-        $("#cookiesList").accordion("destroy");
-    } catch (e) {
-        console.warn(e.message)
+    // Check if accordion is already initialized before destroying
+    if ($("#cookiesList").hasClass("ui-accordion")) {
+        try {
+            $("#cookiesList").accordion("destroy");
+        } catch (e) {
+            console.warn("Accordion destroy error:", e.message);
+        }
     }
 
     if (cks === null)
