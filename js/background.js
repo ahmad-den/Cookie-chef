@@ -1,3 +1,12 @@
+// Import required modules for service worker
+importScripts(
+    '/lib/object-watch.js',
+    '/js/cookie_helpers.js',
+    '/js/utils.js',
+    '/js/data.js',
+    '/devtools/background-devtools.js'
+);
+
 var showContextMenu = undefined;
 
 updateCallback = function () {
@@ -12,7 +21,7 @@ setChristmasIcon();
 setInterval(setChristmasIcon, 60 * 60 * 1000); //Every hour
 
 //Every time the browser restarts the first time the user goes to the options he ends up in the default page (support)
-localStorage.setItem("option_panel", "null");
+chrome.storage.local.set({"option_panel": "null"});
 
 var currentVersion = chrome.runtime.getManifest().version;
 var oldVersion = data.lastVersionRun;
@@ -21,17 +30,17 @@ data.lastVersionRun = currentVersion;
 
 if (oldVersion !== currentVersion) {
     if (oldVersion === undefined) { //Is firstrun
-        chrome.tabs.create({ url: 'http://www.editthiscookie.com/start/' });
+        chrome.tabs.create({ url: 'https://cookiechef.dev/start/' });
     } else {
         chrome.notifications.onClicked.addListener(function (notificationId) {
             chrome.tabs.create({
-                url: 'http://www.editthiscookie.com/changelog/'
+                url: 'https://cookiechef.dev/changelog/'
             });
             chrome.notifications.clear(notificationId, function (wasCleared) { });
         });
         var opt = {
             type: "basic",
-            title: "EditThisCookie",
+            title: "Cookie Chef",
             message: _getMessage("updated"),
             iconUrl: "/img/icon_128x128.png",
             isClickable: true
@@ -111,19 +120,29 @@ function setContextMenu(show) {
     chrome.contextMenus.removeAll();
     if (show) {
         chrome.contextMenus.create({
-            "title": "EditThisCookie",
+            "title": "Cookie Chef",
             "contexts": ["page"],
-            "onclick": function (info, tab) {
-                showPopup(info, tab);
-            }
+            "id": "cookieChefContext"
         });
     }
 }
 
+// Handle context menu clicks
+chrome.contextMenus.onClicked.addListener(function(info, tab) {
+    if (info.menuItemId === "cookieChefContext") {
+        showPopup(info, tab);
+    }
+});
+
+// Handle action button clicks (replaces browserAction)
+chrome.action.onClicked.addListener(function(tab) {
+    // This will open the popup automatically
+});
+
 function setChristmasIcon() {
     if (isChristmasPeriod() && preferences.showChristmasIcon) {
-        chrome.browserAction.setIcon({ "path": "/img/cookie_xmas_19x19.png" });
+        chrome.action.setIcon({ "path": "/img/cookie_xmas_19x19.png" });
     } else {
-        chrome.browserAction.setIcon({ "path": "/img/icon_19x19.png" });
+        chrome.action.setIcon({ "path": "/img/icon_19x19.png" });
     }
 }

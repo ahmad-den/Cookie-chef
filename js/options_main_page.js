@@ -1,4 +1,10 @@
-var panel = JSON.parse(localStorage.getItem("option_panel"));
+var panel = null;
+chrome.storage.local.get(["option_panel"], function(result) {
+    panel = result.option_panel;
+    initializeOptions();
+});
+
+function initializeOptions() {
 var arguments = getUrlVars();
 var element;
 
@@ -13,3 +19,4 @@ if (arguments.page !== undefined) {
 }
 
 location.href = "/options_pages/" + element + ".html";
+}

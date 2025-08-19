@@ -10,13 +10,13 @@ function setPageCooserEvents() {
             return;
         var id = $(this).attr("id");
         if (id == "getting_started") {
-            openExtPage("http://www.editthiscookie.com/start/");
+            openExtPage("https://cookiechef.dev/start/");
             return;
         } else if (id == "help") {
-            openExtPage("http://www.editthiscookie.com/faq/");
+            openExtPage("https://cookiechef.dev/faq/");
             return;
         }
-        ls.set("option_panel", panel);
+        chrome.storage.local.set({"option_panel": panel});
         location.href = "/options_pages/" + id + ".html";
     });
 }

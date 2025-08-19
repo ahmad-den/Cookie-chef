@@ -1,4 +1,4 @@
-console.log("Starting background-devtools");
+console.log("Starting Cookie Chef background-devtools");
 
 // Background page -- background.js
 chrome.runtime.onConnect.addListener(function (port) {

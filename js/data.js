@@ -143,7 +143,7 @@ var ls = {
      * @param value Value of the object to be stored
      */
     set: function (name, value) {
-        localStorage.setItem(name, JSON.stringify(value));
+        chrome.storage.local.set({[name]: value});
     },
 
     /**
@@ -153,19 +153,20 @@ var ls = {
      * @return The fetched/created object
      */
     get: function (name, default_value) {
-        if (localStorage[name] === undefined) {
-            if (default_value !== undefined)
-                ls.set(name, default_value);
-            else
-                return null;
-            return default_value;
-        }
-        try {
-            return JSON.parse(localStorage.getItem(name));
-        } catch (e) {
-            ls.set(name, default_value);
-            return default_value;
-        }
+        return new Promise((resolve) => {
+            chrome.storage.local.get([name], function(result) {
+                if (result[name] === undefined) {
+                    if (default_value !== undefined) {
+                        ls.set(name, default_value);
+                        resolve(default_value);
+                    } else {
+                        resolve(null);
+                    }
+                } else {
+                    resolve(result[name]);
+                }
+            });
+        });
     },
 
     /**
@@ -173,7 +174,7 @@ var ls = {
      * @param name Name of the object to delete
      */
     remove: function (name) {
-        localStorage.removeItem(name);
+        chrome.storage.local.remove([name]);
     }
 };
 

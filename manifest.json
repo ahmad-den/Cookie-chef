@@ -1,40 +1,29 @@
 {
-    "key": "MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDSn5dhR3eTtYJoXe4DW2j9oFWIg71/f21Z3b6tzFva3M9xo07+xUWo9qLmyWkMeisCMhT7VNsuRbP4kIWjWFcFCi/FgtYCWwCV29CVDvj5Xv+Jzrp8znbCICaczf4ZNqCDdk3WrvSBqp1WqRqJ5q8Y7A0aoFRvMoIxqn1/u11rrwIDAQAB",
-    "name": "EditThisCookie",
-    "version": "1.5.0",
-    "description": "__MSG_editThis_description__",
+    "name": "Cookie Chef",
+    "version": "2.0.0",
+    "description": "Cookie Chef is a cookie manager. You can add, delete, edit, search, protect and block cookies!",
     "icons": {
         "16": "img/icon_16x16.png",
         "48": "img/icon_48x48.png",
         "128": "img/icon_128x128.png"
     },
-    "default_locale": "en",
-    "homepage_url": "http://www.editthiscookie.com/",
-    "browser_action": {
+    "homepage_url": "https://cookiechef.dev/",
+    "action": {
         "default_icon": {
             "19": "img/icon_19x19.png",
             "38": "img/icon_38x38.png"
         },
-        "default_title": "EditThisCookie",
+        "default_title": "Cookie Chef",
         "default_popup": "popup.html"
     },
     "devtools_page": "/devtools/devtools-page.html",
     "background": {
-        "scripts": [
-            "/lib/jquery-3.3.1.min.js",
-            "/lib/object-watch.js",
-            "/js/cookie_helpers.js",
-            "/js/utils.js",
-            "/js/data.js",
-            "/js/background.js",
-            "/devtools/background-devtools.js",
-            "/js/ga.js"
-        ]
+        "service_worker": "js/background.js",
+        "type": "module"
     },
     "options_page": "options_main_page.html",
     "permissions": [
         "tabs",
-        "\u003Call_urls\u003E",
         "cookies",
         "contextMenus",
         "unlimitedStorage",
@@ -42,8 +31,12 @@
         "storage",
         "clipboardWrite"
     ],
-    "content_security_policy": "script-src 'self' https://ssl.google-analytics.com; object-src 'self'",
-    "minimum_chrome_version": "41",
-    "manifest_version": 2,
-    "update_url": "http://clients2.google.com/service/update2/crx"
+    "host_permissions": [
+        "<all_urls>"
+    ],
+    "content_security_policy": {
+        "extension_pages": "script-src 'self'; object-src 'self'"
+    },
+    "minimum_chrome_version": "88",
+    "manifest_version": 3
 }
