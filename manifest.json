@@ -1,7 +1,9 @@
 {
+    "manifest_version": 3,
     "name": "Cookie Chef",
     "version": "2.0.0",
     "description": "Cookie Chef is a cookie manager. You can add, delete, edit, search, protect and block cookies!",
+    "default_locale": "en",
     "icons": {
         "16": "img/icon_16x16.png",
         "48": "img/icon_48x48.png",
@@ -16,7 +18,7 @@
         "default_title": "Cookie Chef",
         "default_popup": "popup.html"
     },
-    "devtools_page": "/devtools/devtools-page.html",
+    "devtools_page": "devtools/devtools-page.html",
     "background": {
         "service_worker": "js/background.js",
         "type": "module"
@@ -26,10 +28,8 @@
         "tabs",
         "cookies",
         "contextMenus",
-        "unlimitedStorage",
-        "notifications",
         "storage",
-        "clipboardWrite"
+        "notifications"
     ],
     "host_permissions": [
         "<all_urls>"
@@ -37,6 +37,5 @@
     "content_security_policy": {
         "extension_pages": "script-src 'self'; object-src 'self'"
     },
-    "minimum_chrome_version": "88",
-    "manifest_version": 3
+    "minimum_chrome_version": "88"
 }
